@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# The Expo app is its own repository (github.com/mlokman92/kdh-mobile-app).
+# It was being picked up here as a bare submodule gitlink with no .gitmodules
+# entry, which broke Netlify's clone. The web build does not need it.
+/mobile/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,0 +1,32 @@
+# Netlify build configuration — KDH One Asset web console.
+
+[build]
+  command = "pnpm build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 8 and TypeScript 6 need a current Node. Netlify's default is older.
+  NODE_VERSION = "22"
+  # Note: do not set NPM_FLAGS here. Netlify forwards it to whichever package
+  # manager it detects, and this repo has a pnpm lockfile — pnpm rejects npm-only
+  # flags such as --no-audit and the install would fail.
+
+# Single-page app: React Router owns the routes, so every path has to be served
+# index.html and resolved client-side. Without this, a refresh on /registry or a
+# shared link to /mobile returns a 404 from Netlify's CDN.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Hashed build assets are immutable; everything else should revalidate so a
+# redeploy is picked up immediately during a demo.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
