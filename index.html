@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en-MY">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0B2E38" />
+    <meta
+      name="description"
+      content="KDH One Asset — unified digital asset management for Kejora Development Holding Sdn Bhd. Portfolio dashboards, asset registry, GIS mapping, maintenance, leasing and an AI management copilot."
+    />
+    <title>KDH One Asset — Kejora Development Holding</title>
+    <style>
+      /* First-paint splash. React replaces #root on mount, so this clears itself. */
+      #root:empty::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: #f4f8fb;
+      }
+      @media (prefers-color-scheme: dark) {
+        #root:empty::after { background: #121a24; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

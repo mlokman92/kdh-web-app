@@ -1,0 +1,182 @@
+[
+  {
+    "file": "src/index.css:87-88, src/pages/login.tsx:167-214",
+    "severity": "blocker",
+    "issue": "In LIGHT mode `--primary` is oklch(0.7227 0.192 149.58) and `--primary-foreground` is pure white — measured contrast 2.28:1. The login brand panel (`aside` at login.tsx:167) is `bg-primary text-primary-foreground`, so the entire first screen of the pitch is white-on-pale-green: the 4xl serif headline (line 189) at 2.28:1, the body copy at `/85` = 2.00:1, the four hero stat labels at `/70` = 1.76:1, and the 'Prototype build · Data as at July 2026' footer at `/60` = 1.62:1. Every default `<Button>` in the app has the same 2.28:1 label. Dark mode is fine (9.28:1) — this is a light-mode-only failure, and light is the default theme.",
+    "fix": "Darken `--primary` in the `:root` block only (leave `.dark` untouched) to roughly `oklch(0.5500 0.1500 149.5793)`, which lifts white-on-primary to ~4.6:1. Update `--ring`, `--sidebar-primary` and `--chart-1` in `:root` to the same value so buttons, focus rings, the sidebar mark and the default chart series all move together."
+  },
+  {
+    "file": "src/index.css:148",
+    "severity": "blocker",
+    "issue": "The `.dark` block re-declares `--muted-foreground: oklch(0.5510 0.0234 264.3637)` — byte-identical to the light value at line 92. It was never re-tuned for a dark surface. Measured in dark: 3.03:1 on `--card`, 3.03:1 on `--sidebar`, 3.35:1 on `--muted`, 3.69:1 on `--background`. All fail AA for body text. `text-muted-foreground` appears 468 times outside the UI kit and carries almost every KPI sublabel, card description, table secondary line, axis tick and timestamp in the product, much of it at 11-12px. Dark mode reads as washed-out grey throughout.",
+    "fix": "In the `.dark` block set `--muted-foreground: oklch(0.7200 0.0220 264.3637)` (~5.3:1 on card, ~6.0:1 on background). Keep the light value at line 92 unchanged."
+  },
+  {
+    "file": "src/components/dashboard/use-dashboard-data.ts:67-70,91 and src/components/dashboard/dashboard-filters.tsx:53 and src/pages/dashboard.tsx:162",
+    "severity": "major",
+    "issue": "The product switches language between navigation clicks, and mixes languages inside a single row. Dashboard and Property render Malay card titles ('Penuaan Tunggakan', 'Hasil Berbanding Sasaran', 'Perlu Perhatian'); Registry, Maintenance, GIS Map and Copilot render English ('Score distribution', 'SLA compliance trend', 'Proximity search', 'Conversation history'). Worse, inside the dashboard's own filter row the period Select renders `p.english` (dashboard-filters.tsx:53) so it shows 'Year to Date' next to a zone Select showing 'Semua Zon' and a button reading 'Export Board Pack'. `periodLabel()` also returns the `english` field, so the Malay scope bar at dashboard.tsx:162 renders literally 'Tempoh Year to Date · …' — a mixed-language sentence in the first thing a board member reads. The Malay `label` field defined at lines 67-70 is dead code, never rendered anywhere.",
+    "fix": "Pick one language for the shell and commit. Fastest coherent fix: make `periodLabel()` return `.label` instead of `.english` and change dashboard-filters.tsx:53 to `{p.label}`, then translate the Registry/Maintenance/Map/Copilot section titles and buttons to Malay to match Dashboard and Property. Delete the now-unused `english` field."
+  },
+  {
+    "file": "src/pages/dashboard.tsx:180, src/components/dashboard/secondary-strip.tsx:17, src/components/dashboard/dashboard-skeleton.tsx:12,26",
+    "severity": "major",
+    "issue": "The flagship Executive Dashboard only reaches its intended dense layout at ≥1536px. The hero row is `lg:grid-cols-3 2xl:grid-cols-6` and the 8-metric secondary strip is `sm:grid-cols-4 2xl:grid-cols-8` — neither has an `xl` step. Tailwind's `2xl` is 1536px, so at both 1280px and 1440px (the stated targets, and the resolution of a typical pitch laptop) the six hero KPIs render 3-across in two rows and the eight strip metrics render 4-across in two rows. The top of the screen becomes four stacked rows of tiles instead of two, pushing the revenue chart below the fold and making the page read as sparse and repetitive rather than executive-dense. dashboard-skeleton.tsx repeats the same breakpoints, so the loading state has the same defect.",
+    "fix": "Add `xl:grid-cols-6` to dashboard.tsx:180 and dashboard-skeleton.tsx:12, and `xl:grid-cols-8` to secondary-strip.tsx:17 and dashboard-skeleton.tsx:26."
+  },
+  {
+    "file": "src/components/layout/app-sidebar.tsx:188,196,221,249,253",
+    "severity": "major",
+    "issue": "The sidebar uses `text-muted-foreground` on a `bg-sidebar` surface. `--muted-foreground` is tuned against card/background, not sidebar, and no `--sidebar-muted-foreground` exists. Measured: 4.21:1 in light, 3.03:1 in dark — both fail AA, and the affected text is the smallest in the app: the 'KEJORA Group' subtitle at 0.7rem (line 188), the 'Overview'/'Asset Operations'/'Commercial'/'Intelligence' group labels at 0.68rem uppercase (line 196), the live nav count badges at 0.7rem mono (line 221) and the user's role line (line 249). The nav badges carry real numbers (asset count, open work orders, arrears accounts) that a board member will try to read.",
+    "fix": "Replace `text-muted-foreground` with `text-sidebar-foreground/70` on lines 188, 196, 221, 249 and 253 so the secondary ink is derived from the sidebar's own foreground token in both themes."
+  },
+  {
+    "file": "src/components/common/status-badge.tsx:19,37",
+    "severity": "major",
+    "issue": "The `warning` tone is `color-mix(in oklch, var(--destructive) 58%, var(--chart-1))` used as text on its own 12% tint. Measured on card: 2.69:1 in light and 4.36:1 in dark — both fail AA, light badly. This is not a corner case: `TONE_CLASSES.warning` and `TONE_TEXT_CLASSES.warning` are consumed by 22 files and drive every 'Vacant', 'At Risk', 'Under Maintenance', 'Expiring Soon', 'P2 - High', 'Fair', '1st Notice' and 'Partial' badge, the amber KPI intent (kpi-card.tsx:39-40), the topbar notification severity chip (topbar.tsx:120-121) and every amber SLA pill on the kanban.",
+    "fix": "Darken the mix so it survives its own tint — e.g. `color-mix(in oklch, var(--destructive) 58%, var(--chart-1))` becomes a two-step mix pulled toward the foreground: `color-mix(in oklch, color-mix(in oklch, var(--destructive) 58%, var(--chart-1)) 78%, var(--foreground))`. Apply to TONE_CLASSES.warning and TONE_TEXT_CLASSES.warning; leave TONE_DOT_CLASSES (a dot is a graphical object at a lower bar)."
+  },
+  {
+    "file": "src/pages/gis-map.tsx:395",
+    "severity": "major",
+    "issue": "The page description hardcodes the string '240 assets located'. The number is correct only for the untouched seed against an all-zones persona: the page itself filters `a.status !== 'Disposed'` and applies RBAC zone scoping at lines 106-109, and the Registry lets the demo add and delete assets. Switch to a zone-scoped role from the sidebar 'Switch role' menu — which the topbar actively advertises — and the header claims '240 assets located' directly above a KPI tile reading e.g. 'Assets mapped 38 / of 38 in scope'. A sceptical board member will spot the contradiction on stage.",
+    "fix": "Interpolate the live figure: change the description to a template string using `scoped.length`, e.g. `…zones — ${formatNumber(scoped.length)} assets located, clustered and analysed without a single external tile request.`"
+  },
+  {
+    "file": "src/index.css:83,96",
+    "severity": "minor",
+    "issue": "In light mode `--card` is pure white oklch(1.0) against `--background` oklch(0.9751) — 1.07:1 — and `--border` against card is 1.24:1 (against background, 1.15:1). Both are far below the 3:1 floor for a meaningful boundary. Since the design brief deliberately prefers subtle borders over shadows, cards, the KPI tiles, the SectionCard headers and every table outline have almost no visible edge in light mode; the dashboard reads as one undifferentiated white sheet. Dark mode is acceptable (border 1.94:1, card/background 1.22:1 but with a real hue shift).",
+    "fix": "In `:root`, darken `--border` to about `oklch(0.8700 0.0060 264.5313)` (~1.7:1, a visible hairline) and either drop `--card` to `oklch(0.9950 0 0)` or lift `--background` to increase the card/page separation. Leave the `.dark` values alone."
+  },
+  {
+    "file": "src/pages/maintenance.tsx:170",
+    "severity": "minor",
+    "issue": "Breadcrumb root label is inconsistent with the rest of the app. Maintenance passes `breadcrumb={[{ label: 'Dashboard', href: '/' }, …]}` while Dashboard (dashboard.tsx:141), Registry (registry.tsx:364), Property (property.tsx:310), GIS Map (gis-map.tsx:397) and Copilot (copilot.tsx:253) all pass `{ label: 'KDH One Asset', href: '/' }`. The topbar breadcrumb also always renders 'KDH One Asset' as root, so on the Maintenance page the two breadcrumbs visibly disagree.",
+    "fix": "Change maintenance.tsx:170 to `breadcrumb={[{ label: 'KDH One Asset', href: '/' }, { label: 'Maintenance & Work Orders' }]}`."
+  },
+  {
+    "file": "src/pages/dashboard.tsx:136, src/pages/gis-map.tsx:392",
+    "severity": "minor",
+    "issue": "Three different root spacing scales across six pages. Registry, Property, Maintenance and Copilot use `space-y-5`; Dashboard uses `space-y-4`; GIS Map uses `flex flex-col gap-4`. The vertical rhythm between the PageHeader and the first content block therefore shifts by 4px as the user navigates, which is visible when clicking between tabs during a demo.",
+    "fix": "Standardise on `space-y-5` — change dashboard.tsx:136 to `className=\"space-y-5\"` and gis-map.tsx:392 to `className=\"flex flex-col gap-5\"` (or `space-y-5`)."
+  },
+  {
+    "file": "src/pages/login.tsx:220-226",
+    "severity": "minor",
+    "issue": "A Badge reading 'EN / BM' with `cursor-default` and `title=\"Bilingual interface — English / Bahasa Melayu\"` sits at the top-right of the login screen. It is inert decoration — there is no language state, no toggle, no i18n layer anywhere in src/. It advertises a capability the prototype does not have, next to a ThemeToggle that genuinely works, so it reads as a broken control. It also sets an expectation that the inconsistent per-module language (see the language finding) will be blamed against.",
+    "fix": "Either delete the badge, or wire it to a real `lang` store and make it a two-state toggle. If the pitch wants to signal the roadmap, relabel it explicitly, e.g. a `variant=\"outline\"` badge reading 'BM support — roadmap'."
+  },
+  {
+    "file": "src/components/maintenance/work-order-board.tsx:325,339",
+    "severity": "minor",
+    "issue": "The kanban lanes are fixed `w-[272px]` with `gap-3` inside a `-mx-1 … overflow-x-auto` track: six lanes need ~1692px. At 1280px the sidebar (16rem) plus shell padding (px-4/sm:px-6) leaves roughly 970px of content width, so only about three and a half of the six lanes are visible and the lane structure — the story the tab is selling — is half off-screen. It scrolls correctly so nothing breaks, but the first impression understates the feature.",
+    "fix": "Make the lane width responsive, e.g. `w-[232px] xl:w-[248px] 2xl:w-[272px]`, and reduce to `gap-2` below 2xl so five lanes clear the fold at 1280px."
+  },
+  {
+    "file": "src/pages/gis-map.tsx:472",
+    "severity": "minor",
+    "issue": "The map grid height is the fixed expression `lg:h-[calc(100dvh_-_21rem)]`, but the 21rem subtraction assumes the KPI row above is a single line. That row is `grid-cols-2 sm:grid-cols-3 xl:grid-cols-5` (line 433), so between the `lg` breakpoint (1024px) and `xl` (1280px) the five KPI tiles wrap to two rows and consume roughly 7rem more than the calc allows, pushing the map region past the viewport and forcing the whole page to scroll — the one screen that should never scroll.",
+    "fix": "Give the KPI grid an `lg:grid-cols-5` step so the row height is stable from 1024px up, or make the subtraction breakpoint-aware: `lg:h-[calc(100dvh_-_28rem)] xl:h-[calc(100dvh_-_21rem)]`."
+  },
+  {
+    "file": "src/components/maintenance/qr-labels-dialog.tsx:200",
+    "severity": "minor",
+    "issue": "The asset picker list renders its empty state as an ad-hoc `<li className=\"px-3 py-6 text-center text-xs text-muted-foreground\">No assets match.</li>` instead of the shared `EmptyState` component used in the other 23 places that have one. It is the only bare, unstyled, icon-less, action-less empty state in the product, and the terse 'No assets match.' copy does not match the guiding tone used elsewhere ('No work orders match these filters' plus a description and a reset button).",
+    "fix": "Replace with `<EmptyState icon={SearchXIcon} title=\"No assets match\" description=\"Widen the search or clear the filter to see printable labels again.\" className=\"border-0 bg-transparent py-8\" />`, matching work-order-board.tsx:305."
+  },
+  {
+    "file": "src/components/copilot/engine.ts",
+    "severity": "blocker",
+    "issue": "Collections intent reports 24 months of money as if it were the selected period. Line 1452 `const rvt = revenueVsTarget(s.monthlyFinancials)` reads ALL of MONTHLY_FINANCIALS, which `src/data/mock.ts:1182` builds as 24 months (`for (let i = 23; i >= 0; i--)`). Lines 1454-1457 then reduce every row into `ytdRevenue`/`ytdTarget`/`ytdCollections`, but the narrative (line 1468) says \"Group revenue for the period is {ytdRevenue} against a target of {ytdTarget}\" and the metric tile (line 1474) is labelled `Revenue … {months} months` where `months` is 12 (or 3-12 if the question names a window). Ask the demo question \"What is our collection rate?\" and the copilot states a revenue figure roughly 2x the dashboard's, computed over a window it does not disclose. The dashboard does this correctly (`use-dashboard-data.ts:442-443` slices `-windowMonths`), so the two screens contradict each other on the single number a Finance Controller will check first.",
+    "fix": "Slice before reducing: `const rvt = revenueVsTarget(s.monthlyFinancials).slice(-months)`, and either use the same sliced array for the line chart or retitle the chart \"…last 24 months\". Same `months` value must drive the headline, the narrative, the metric sublabel and the working text."
+  },
+  {
+    "file": "src/lib/analytics.ts",
+    "severity": "blocker",
+    "issue": "SLA compliance is computed over a denominator that includes cancelled and still-running tickets, which drives the flagship KPI red. Line 447 `const resolved = workOrders.filter((w) => w.slaStatus === 'Met' || w.slaStatus === 'Breached')` and line 456 `slaCompliancePct: pct(resolved.filter(Met).length, resolved.length)`. Two seed behaviours poison this: (a) `src/data/mock.ts:2147-2150` stamps `completedAt` on the 10 Cancelled work orders, so `computeSlaStatus` (mock.ts:2032) grades them Met/Breached and they enter the ratio; (b) `computeSlaStatus` marks any still-open ticket past its due time as 'Breached', and the seed deliberately creates ~22% breached among the 80 non-Open in-flight tickets (mock.ts:2155-2161). Net effect: numerator ~75 Met against a denominator of ~110, i.e. roughly 68%, which renders `intent: 'critical'` on the dashboard hero tile (`use-dashboard-data.ts:591`, threshold 85) and on the Maintenance KPI (`pages/maintenance.tsx:242`, threshold 75). Worse, the copilot's own \"Show working\" text asserts the opposite of what the code does — engine.ts:1744 and engine.ts:1819 both state \"tickets still running are excluded from the denominator\". A client who opens Show working and then counts the breached tickets on the board will catch it.",
+    "fix": "Define the resolved set as completed non-cancelled work only: `const resolved = workOrders.filter((w) => w.status === 'Closed' && Boolean(w.completedAt))`, count `slaStatus === 'Met'` against that, and keep in-flight breaches reported separately via `overdue` (which already exists). Alternatively stop stamping `completedAt` on Cancelled tickets in mock.ts:2147-2150. Either way the working text in engine.ts:1744/1819 must match."
+  },
+  {
+    "file": "src/components/property/new-lease-dialog.tsx",
+    "severity": "blocker",
+    "issue": "The \"new tenant\" branch of the New Lease flow creates a lease pointing at a tenant record that never exists. Line 139: `const resolvedTenantId = newTenant ? `tnt-new-${Date.now().toString(36)}` : tenantId`, and `useAppStore` exposes no `addTenant` action (`src/store/app-store.ts:338-354`), so nothing is written to `tenants`. Three visible consequences immediately after the toast fires: (1) `property.tsx:463` `tenants.find((t) => t.id === activeLease.tenantId)` returns undefined, so the whole tenant block in LeaseSheet (SSM number, phone, email, credit rating — lease-sheet.tsx:184-211) silently disappears; (2) clicking the tenant name in that sheet (lease-sheet.tsx:176 `actions.openTenant`) sets `tenantId`, but `property.tsx:190` resolves `activeTenantRow` to null and `tenant-sheet.tsx:49` does `if (!row) return null` — the click does absolutely nothing, no sheet, no toast; (3) the new tenant never appears in the Penyewa tab. This is the flagship \"execute a tenancy live on stage\" moment.",
+    "fix": "Add an `addTenant(input): Tenant` action to app-store.ts that pushes a real Tenant (id, name, businessCategory, contactPerson, phone, email, ssmNo, creditRating, tenantSinceYear) plus its audit entry, and call it from `submit` before `addLease`, passing the returned id as `tenantId`. As a defensive second fix, make `TenantSheet` render a \"record not found\" state instead of `return null` so a missing row can never present as a dead click."
+  },
+  {
+    "file": "src/pages/registry.tsx",
+    "severity": "major",
+    "issue": "RBAC can be bypassed in about ten seconds, and RBAC is an explicit selling point of this pitch. The registry computes `scope` from `visibleZones(user)` (lines 84-88) for the table, but resolves the detail sheet against the unscoped store: line 125 `assets.find((a) => a.id === assetParam || a.code === assetParam)` and line 201 `assets.find((a) => a.id === detailId)`. The command palette feeds it — `command-palette.tsx:88` selects all `s.assets`, lines 103-115 search all of them with no zone filter, and line 232 navigates to `/registry?asset=${asset.id}`. Sign in as Technician (zoneScope = Desaru + Pengerang, mock.ts:2487), press Ctrl-K, type \"Mersing\", and you open a full out-of-scope asset record with Edit and Delete live in the sheet. The same unscoped-asset-list problem exists in `maintenance/raise-work-order-dialog.tsx:59` (AssetPicker over every asset — raising a ticket on an out-of-zone asset makes the ticket vanish from the board that user can see, because `maintenance.tsx:84-88` filters it out) and in `registry/add-asset-dialog.tsx` (zone dropdown offers all six ZONES).",
+    "fix": "Resolve `detailAsset`/`editAsset`/the `?asset=` deep link against `scope`, not `assets`, and show a \"not in your zone scope\" empty state when the id resolves outside scope. Filter `assets` by `visibleZones(user)` in command-palette.tsx before searching, and pass a zone-scoped asset list into RaiseWorkOrderDialog and AddAssetDialog."
+  },
+  {
+    "file": "src/data/mock.ts",
+    "severity": "major",
+    "issue": "Every arrears ageing bucket is labelled one band more optimistic than the data it holds. `attachPayments` assigns buckets at lines 1561-1566: `age <= 30 -> ageing.current`, `<= 60 -> d30`, `<= 90 -> d60`, `<= 120 -> d90`, else `d90plus`. But every display labels them as if `current` meant not-yet-due: `use-dashboard-data.ts:752-758` renders 'Semasa' / '1–30 hari' / '31–60 hari' / '61–90 hari' / 'Melebihi 90 hari', and `engine.ts:1231-1237` uses the identical English labels. So rent that is 1-30 days overdue is presented to the board as \"Semasa/Current\" (i.e. not overdue at all), and a debt 100 days old is presented in the \"61–90 hari\" band. The copilot compounds it at engine.ts:1238/1248/1254, calling `d90 + d90plus` \"Aged 60 days+\" when those buckets actually hold debt over 90 days. A finance director reads the ageing table first and this is exactly the kind of understatement they are trained to spot.",
+    "fix": "Shift the generator one band — `age <= 0 -> current`, `<= 30 -> d30`, `<= 60 -> d60`, `<= 90 -> d90`, `> 90 -> d90plus` — so the field names match the published labels; or relabel the buckets everywhere to 'Belum genap 30 hari / 31–60 / 61–90 / 91–120 / Melebihi 120 hari' and correct the copilot's \"Aged 60 days+\" metric label and narrative to \"Aged 90 days+\"."
+  },
+  {
+    "file": "src/components/layout/app-sidebar.tsx",
+    "severity": "major",
+    "issue": "The sidebar badges are group-wide while every page they link to is zone-scoped, so two contradictory numbers sit on screen at the same time. Lines 161-170 compute `assets: assets.length`, `openWorkOrders: workOrders.filter(not Closed/Cancelled).length` and `arrears: leases.filter(outstandingAmount > 0).length` straight off the unfiltered store. Sign in as Property & Leasing Manager (3 of 6 zones, mock.ts:2460) and the Maintenance badge shows the group's open work order count while the Maintenance KPI card immediately to its right shows only the scoped count from `workOrderSummary(scoped)` (maintenance.tsx:124). Same for the Registry badge vs `RegistrySummary`'s \"Total assets\" and the Property badge vs `arrears.accountsInArrears`.",
+    "fix": "Read `user` via `useAuthStore` in AppSidebar, derive `visibleZones(user)` and filter assets by `a.location.zone`, work orders by `w.zone` and leases by `l.zone` before counting — the same predicate the pages use."
+  },
+  {
+    "file": "src/components/maintenance/planned-maintenance.tsx",
+    "severity": "major",
+    "issue": "The Planned Maintenance tab ignores the signed-in role's zone scope while every sibling tab on the same page respects it. Lines 67-72 pull `s.schedules`, `s.assets`, `s.technicians` and `s.vendors` directly from the store, whereas `pages/maintenance.tsx:84-88` builds `scoped` from `visibleZones(user)` and passes it to Board, List, Technicians, Vendors and Analytics. A Facilities Manager (4 of 6 zones) therefore sees all 70 PM tasks including Pengerang and Bandar Mas, sitting under KPI tiles that count only their four zones — and can generate a work order against an out-of-scope asset via `generate()` (line 164). The same unscoped-list pattern appears in `technicians-panel.tsx:53` (all 24 technicians regardless of zone), `qr-labels-dialog.tsx:85` and `qr-scan-dialog.tsx:93` (all assets).",
+    "fix": "Pass the page's `zones` (or the scoped asset id set) into PlannedMaintenance and filter `schedules` by the zone of `assets.find(a => a.id === s.assetId)`; filter TechniciansPanel's roster by `visibleZones(user).includes(t.zone)`; scope the QR dialogs' asset lists the same way."
+  },
+  {
+    "file": "src/pages/property.tsx",
+    "severity": "major",
+    "issue": "The Tenants tab leaks every tenant in the group to a zone-restricted role. Line 145: `tenants: tenants.filter((t) => tenantIds.has(t.id) || zone === 'all')`. The `|| zone === 'all'` short-circuit fires in the default state of the page (the zone Select defaults to 'all', line 91), so all 96 tenants — including those whose only leases sit in zones the persona cannot see — flow into `tenantDirectory` (line 152) and render in the Penyewa tab with names, SSM numbers, phone numbers and emails. The `zone === 'all'` clause was presumably meant to mean \"no zone narrowing\", but `tenantIds` is already derived from `scopedLeases`, which is already RBAC-filtered by `inScope` (line 130).",
+    "fix": "Drop the short-circuit: `tenants: tenants.filter((t) => tenantIds.has(t.id))`. `tenantIds` already reflects both the RBAC scope and the zone filter."
+  },
+  {
+    "file": "src/data/mock.ts",
+    "severity": "major",
+    "issue": "Seeded data-quality scores are random numbers, not the completeness rule the app itself publishes, so the Data Quality screen cannot be reconciled with its own evidence column. Line 1057: `const dataQualityScore = lowQuality ? ri(34, 69) : ri(72, 100)`. Meanwhile `registry-utils.ts:391 completeness()` is the stated definition (weighted checks on land title, building schedule, insurance, documents, inspections, coordinates, ESG, tags, custodian, notes) and it IS applied to imported assets (`registry.tsx:295`) and to newly added ones (`add-asset-dialog.tsx:418`). The remediation queue in `data-quality-panel.tsx:196-241` prints the random score beside `qualityGaps(asset)` computed live from the real fields, so rows read \"Score 41 · Missing: Supporting documents\" (one gap) next to \"Score 68 · Missing: land title, insurance, documents, inspection date, ESG\" (five gaps). Additionally, an asset with no insurance policy can score 94 (the 8% branch at line 1060 where `lowQuality` is false) and never enters the queue at all, while `needsAttention` (< 70) is the queue's only gate. Two different scoring systems in one column, on the screen the pitch calls the differentiator.",
+    "fix": "After `buildAssets()` returns, overwrite each record's score with the real rule: `for (const a of ASSETS) a.dataQualityScore = completeness(a)` (import from registry-utils, or move `completeness` into `lib/` so both mock.ts and the registry share one implementation). Keep the `lowQuality` flag only to decide which fields to omit, so the score falls out of the omissions rather than being drawn independently."
+  },
+  {
+    "file": "src/components/copilot/engine.ts",
+    "severity": "major",
+    "issue": "The maintenance spend intent totals 24 months and presents it as spend to date. Lines 1848-1851: `const rows = maintenanceSpendVsBudget(s.monthlyFinancials)` then `spend`/`budget` reduce over all 24 rows, headlined \"Maintenance spend to date\" (line 1861). The dashboard chart deliberately shows 12 (`use-dashboard-data.ts:451` `.slice(-12)`) and the Maintenance page KPI shows the single latest month (`maintenance.tsx:133,258`). Ask \"What is our maintenance spend versus budget?\" during the demo and the copilot returns roughly double what the chart behind it displays, with a monthly table that runs to 24 rows.",
+    "fix": "Slice to a stated window — `maintenanceSpendVsBudget(s.monthlyFinancials).slice(-12)` — and say \"trailing 12 months\" in the headline label, narrative and working text. Same treatment as the collections intent."
+  },
+  {
+    "file": "src/pages/gis-map.tsx",
+    "severity": "minor",
+    "issue": "The map page header hardcodes an asset count that the page itself contradicts. Line 395: \"…across the six KEJORA operational zones — 240 assets located, clustered and analysed…\". But `scoped` (lines 106-109) excludes Disposed assets and applies `visibleZones(user)`, so the KPI card three inches below reads \"Assets mapped N of M in scope\" with M strictly less than 240 for every persona, and around 60-90 for the Technician persona — who is also not looking at six zones. The count also never moves when an asset is added via the registry. The same fixed claim appears in the Registry, Maintenance and Property page descriptions (\"across all six KEJORA zones\" / \"across the six KEJORA operational zones\").",
+    "fix": "Interpolate the live figures: `${formatNumber(scoped.length)} assets located across ${allowedZones.size} operational zone(s)`. Do the same on the other three page headers so a role switch updates the prose along with the numbers."
+  },
+  {
+    "file": "src/components/copilot/engine.ts",
+    "severity": "minor",
+    "issue": "Vendor contract-expiry count silently includes contracts that already expired. Lines 2034-2037: `const expiring = s.vendors.filter((v) => { const d = daysUntil(v.contractExpiry, s.now); return Number.isFinite(d) && d <= 120 })` — there is no lower bound, so a contract that lapsed 200 days ago satisfies `d <= 120`. The narrative (line 2048) then says \"N contracts expire within 120 days and need a renewal or re-tender decision\" and the metric tile (line 2053) is labelled \"Contracts expiring ≤120d\". Compare `expiringInsurance` in analytics.ts:693-710, which has the same shape but deliberately surfaces `expired` as its own flag and says so.",
+    "fix": "Either bound it (`d >= 0 && d <= 120`) or split the count the way the insurance intent does — \"N expiring within 120 days, of which M have already lapsed\" — and add the lapsed subset to the narrative."
+  },
+  {
+    "file": "src/components/dashboard/expiry-pipeline.tsx",
+    "severity": "minor",
+    "issue": "The panel's call-to-action lands on a filter that does not reproduce the panel's own numbers. Line 43 links to `/property?status=Expiring+Soon`, which `property.tsx:112-116` turns into `statusFilter = 'Expiring Soon'` on the Rent Roll tab, i.e. a filter on `Lease.status`. But the buckets above it come from `leaseExpiryPipeline` (analytics.ts:410-422), which counts every lease that is not Terminated/Draft by `endDate` — Active and Renewal In Progress leases included. The seed only labels a lease 'Expiring Soon' when `remainingDays <= 90` and a coin flip lands (mock.ts:1631), so the destination row count will be visibly smaller than the \"0-30 / 31-60 / 61-90 days\" totals the user just clicked. The dashboard's secondary strip has the identical link (`use-dashboard-data.ts:630`) beside a count from `expiringLeases(scope.leases, 90)`.",
+    "fix": "Add an `expiring=<days>` param to the property page that filters the rent roll by `daysUntil(l.endDate) <= days` (reusing `expiringLeases`), and point both the pipeline and the secondary strip at that instead of `status=Expiring+Soon`."
+  },
+  {
+    "file": "src/pages/login.tsx",
+    "severity": "minor",
+    "issue": "The \"Remember this device\" checkbox is inert. `remember` is declared at line 108 and bound to the Checkbox at lines 317-321, but it is never read — `signIn` (lines 126-146) does not consult it and `useAuthStore.login` (auth-store.ts:89-101) takes only email and password. The auth store persists unconditionally to localStorage (auth-store.ts:111-120), so the session survives a refresh whether the box is ticked or not. It is the only control on the sign-in screen and someone in the room will click it.",
+    "fix": "Either wire it — pass `remember` into `login`, and have the persist middleware use `sessionStorage` when false (swap the storage in `createJSONStorage`) — or delete the checkbox. Do not ship an inert control on the first screen of the demo."
+  },
+  {
+    "file": "src/pages/maintenance.tsx",
+    "severity": "minor",
+    "issue": "Zone scoping is gated on a hardcoded 6 instead of the ZONES union. Line 85: `if (zones.length >= 6) return workOrders`. Everywhere else the same check is written against the source of truth — `registry.tsx:456` uses `zones.length === ZONES.length`, `use-dashboard-data.ts:183` uses `zones.length >= ZONES.length`, `dashboard.tsx:114` uses `zones.length >= ZONES.length`. If a seventh KEJORA zone is ever added to `lib/types.ts`, this page silently stops filtering for full-scope roles while every other page keeps filtering, and the counts drift apart with no error.",
+    "fix": "Import `ZONES` (already imported for other uses in sibling files) and write `if (zones.length >= ZONES.length) return workOrders`."
+  },
+  {
+    "file": "src/components/property/property.tsx",
+    "severity": "minor",
+    "issue": "The analysis-period Select offers '24 bulan terakhir' but the payment ledger only holds 12 months, so the option produces a half-empty chart and a misleading KPI sublabel. `PERIODS` (property.tsx:62-66) offers 6/12/24; `collectionRate`/`collectionTrend` (analytics.ts:361-383) build `recentPeriods(24, now)` keys, but `attachPayments` (mock.ts:1521-1526) only ever emits invoices for `k = -11..0`, i.e. 12 periods. Selecting 24 months therefore yields 12 trend points with `billed: 0, ratePct: 0` — a chart that flatlines to zero for its first half — while the KPI sublabel reads \"Purata 24 bulan\" over what is really 12 months of data (the rate itself is unchanged because `collectionRate` falls back to all payments when the key set matches nothing new).",
+    "fix": "Either drop the 24-month option, or generate 24 months of invoices in `attachPayments` (extend the loop to `k = -23`), or have `collectionTrend` trim leading periods with `billed === 0` and label the KPI with the number of months that actually carried billing."
+  }
+]
